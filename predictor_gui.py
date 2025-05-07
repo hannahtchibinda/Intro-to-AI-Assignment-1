@@ -9,7 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 df = None
 model = None
 
-
+# This is a comment!
 # Function to load dataset
 def load_dataset():
     global df
