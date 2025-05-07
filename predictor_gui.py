@@ -9,6 +9,7 @@ from sklearn.preprocessing import LabelEncoder
 df = None
 model = None
 
+
 # Function to load dataset
 def load_dataset():
     global df
@@ -25,8 +26,8 @@ def load_dataset():
             messagebox.showerror("Error", f"Failed to load dataset: {e}")
 
 # Function to train the model
-def train_model(df, features, target):
-    global model
+def train_model(features, target):
+    global df, model
     try:
         X = df[features]
         y = df[target]
