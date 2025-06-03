@@ -1,77 +1,78 @@
+# Step 1: import everything (some unused imports left in, just in case)
 import pandas as pd
-import tkinter as tk
-from tkinter import filedialog, messagebox
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score
 
-df = None
-model = None
+# Step 2: upload the dataset to the left (I uploaded mine and it shows below)
+# This line loads it in - make sure file name matches
+df = pd.read_csv("/content/student_data.csv")
 
-# This is a comment!
-# Function to load dataset
-def load_dataset():
-    global df
-    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"),
-                                                       ("Excel files", "*.xlsx;*.xls")])
-    if file_path:
-        try:
-            if file_path.endswith('.csv'):
-                df = pd.read_csv(file_path)
-            else:
-                df = pd.read_excel(file_path, engine='openpyxl')
-            messagebox.showinfo("Success", "Dataset loaded successfully but did you check the script!")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to load dataset: {e}")
+# Just checking it's loading properly
+print("The first 5 rows of data:")
+print(df.head())
 
-# Function to train the model
-def train_model(features, target):
-    global df, model
-    try:
-        X = df[features]
-        y = df[target]
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        model = RandomForestClassifier()
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        accuracy = accuracy_score(y_test, y_pred)
-        messagebox.showinfo("Model Trained", f"Model trained successfully!\nAccuracy: {accuracy:.2f}")
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to train model: {e}")
+# Step 3: Data Cleaning!
+# Some entries are in the form 'varies' or 'unknown' which mess up the data
+df.replace(["varies", "unknown"], np.nan, inplace=True)
 
-# Function to make predictions
-def make_predictions(model, df, features):
-    try:
-        X_new = df[features]
-        predictions = model.predict(X_new)
-        result_text.delete(1.0, tk.END)
-        result_text.insert(tk.END, f"Predictions:\n{predictions}")
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to make predictions: {e}")
+# Making sure these columns are numbers, not strings
+df["age"] = pd.to_numeric(df["age"], errors='coerce')
+df["study_hours_per_day"] = pd.to_numeric(df["study_hours_per_day"], errors='coerce')
+df["mental_health_rating"] = pd.to_numeric(df["mental_health_rating"], errors='coerce')
 
-# Set up GUI
-root = tk.Tk()
-root.title("Student Predictive Grades")
+# Get rid of rows with missing info
+df.dropna(inplace=True)
 
-load_button = tk.Button(root, text="Load Dataset", command=load_dataset)
-load_button.pack(pady=10)
+# Step 4: Encode stuff (turn words into numbers for the model)
+# Like gender, diet quality etc.
+label_columns = [
+    "gender", "part_time_job", "diet_quality", "parental_education_level",
+    "internet_quality", "extracurricular_participation"
+]
 
-tk.Label(root, text="Features (comma-separated):").pack()
-features_entry = tk.Entry(root)
-features_entry.pack(pady=5)
+# quick loop to do all label encodings
+for col in label_columns:
+  encoder = LabelEncoder()
+  df[col] = encoder.fit_transform(df[col])  # fits and transforms each one
 
-tk.Label(root, text="Target:").pack()
-target_entry = tk.Entry(root)
-target_entry.pack(pady=5)
+# Step 5: Convert exam score into pass/fail
+# (pass = 60 or more)
+df["passed"] = (df["exam_score"] >= 60).astype(int)
 
-train_button = tk.Button(root, text="Train Model", command=lambda: train_model(df, features_entry.get().split(','), target_entry.get()))
-train_button.pack(pady=10)
+# Step 6: Select the columns I want the model to learn from
+features = [
+    "age", "gender", "study_hours_per_day", "social_media_hours",
+    "netflix_hours", "part_time_job", "attendance_percentage",
+    "sleep_hours", "diet_quality", "exercise_frequency",
+    "parental_education_level", "internet_quality",
+    "mental_health_rating", "extracurricular_participation"
+]
 
-predict_button = tk.Button(root, text="Make Predictions", command=lambda: make_predictions(model, df, features_entry.get().split(',')))
-predict_button.pack(pady=10)
+X = df[features]
+y = df["passed"]
 
-result_text = tk.Text(root, height=20, width=80)
-result_text.pack(pady=10)
+# Step 7: Split into training and testing sets
+# (20% of data used for testing)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-root.mainloop()
+# Step 8: Make the model!
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+# Step 9: Test the model
+y_pred = model.predict(X_test)
+
+# Check how accurate it is
+accuracy = accuracy_score(y_test, y_pred)
+print(f"✔️Accuracy of the Model: {accuracy * 100:.2f}%")
+
+# Final test print
+print("\nSome real vs predicted values for reference:")
+print(pd.DataFrame({
+    "Actual Values:": y_test.values[:10],
+    "Predicted Values:": y_pred[:10]
+}))
+
